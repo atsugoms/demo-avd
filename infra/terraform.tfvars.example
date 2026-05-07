@@ -1,0 +1,12 @@
+# Azure subscription and tenant configuration
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+tenant_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Project configuration
+prj = "at-avd"
+env = "test"
+
+# ADDS VM configuration
+adds_vm_size        = "Standard_D2as_v7"
+adds_admin_username = "azureuser"
+adds_admin_password = "YOUR_STRONG_PASSWORD"
