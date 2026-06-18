@@ -10,3 +10,9 @@ env = "test"
 adds_vm_size        = "Standard_D2as_v7"
 adds_admin_username = "azureuser"
 adds_admin_password = "YOUR_STRONG_PASSWORD"
+
+# AVD session host configuration
+session_host_vm_size        = "Standard_B2as_v2"
+session_host_admin_username = "azureuser"
+session_host_admin_password = "YOUR_STRONG_PASSWORD"
+session_host_count          = 1
