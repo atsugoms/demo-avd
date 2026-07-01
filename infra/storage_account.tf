@@ -4,8 +4,11 @@ locals {
     0,
     24
   )
+
+  profiles_storage_app_display_name = "[Storage Account] ${local.profiles_storage_account_name}.file.core.windows.net"
 }
 
+# Create a storage account for AVD FSLogix profile containers
 resource "azurerm_storage_account" "profiles" {
   name                     = local.profiles_storage_account_name
   resource_group_name      = azurerm_resource_group.avd_rg.name
@@ -33,6 +36,7 @@ resource "azurerm_storage_share" "profiles" {
   enabled_protocol   = "SMB"
 }
 
+# Create a private endpoint for the storage account's file service
 resource "azurerm_private_dns_zone" "storage_file" {
   name                = "privatelink.file.core.windows.net"
   resource_group_name = azurerm_resource_group.avd_rg.name
@@ -63,4 +67,23 @@ resource "azurerm_private_endpoint" "storage_file" {
     name                 = "storage-file-dns-zone-group"
     private_dns_zone_ids = [azurerm_private_dns_zone.storage_file.id]
   }
+}
+
+# Grant delegated permissions to the storage account's service principal for Microsoft Graph API
+data "azuread_application_published_app_ids" "well_known" {}
+
+data "azuread_service_principal" "microsoft_graph" {
+  client_id = data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
+}
+
+data "azuread_service_principal" "profiles_storage_app" {
+  display_name = local.profiles_storage_app_display_name
+
+  depends_on = [azurerm_storage_account.profiles]
+}
+
+resource "azuread_service_principal_delegated_permission_grant" "profiles_storage_graph_consent" {
+  service_principal_object_id          = data.azuread_service_principal.profiles_storage_app.object_id
+  resource_service_principal_object_id = data.azuread_service_principal.microsoft_graph.object_id
+  claim_values                         = ["openid", "profile", "User.Read"]
 }
