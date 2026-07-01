@@ -53,7 +53,7 @@ resource "azurerm_virtual_desktop_host_pool_registration_info" "avd_registration
 # Session Host NIC
 resource "azurerm_network_interface" "avd_sessionhost_nic" {
   count               = var.session_host_count
-  name                = format("%s-%s-win11ent-nic%02d", var.prj, var.env, count.index + 1)
+  name                = format("%s-%s-win11ent-%02d-nic", var.prj, var.env, count.index + 1)
   location            = azurerm_resource_group.avd_rg.location
   resource_group_name = azurerm_resource_group.avd_rg.name
 
@@ -67,8 +67,8 @@ resource "azurerm_network_interface" "avd_sessionhost_nic" {
 # Session Host VM
 resource "azurerm_windows_virtual_machine" "avd_sessionhost_win11ent" {
   count               = var.session_host_count
-  name                = format("%s-%s-win11ent%02d", var.prj, var.env, count.index + 1)
-  computer_name       = format("win11ent%02d", count.index + 1)
+  name                = format("%s-%s-win11ent-%02d", var.prj, var.env, count.index + 1)
+  computer_name       = format("win11ent-%02d", count.index + 1)
   location            = azurerm_resource_group.avd_rg.location
   resource_group_name = azurerm_resource_group.avd_rg.name
   size                = var.session_host_vm_size
@@ -83,6 +83,7 @@ resource "azurerm_windows_virtual_machine" "avd_sessionhost_win11ent" {
   }
 
   os_disk {
+    name                 = format("%s-%s-win11ent-%02d-osdisk", var.prj, var.env, count.index + 1)
     caching              = "ReadWrite"
     storage_account_type = "StandardSSD_LRS"
     disk_size_gb         = 128

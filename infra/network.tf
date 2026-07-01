@@ -11,3 +11,12 @@ resource "azurerm_subnet" "hub_default_snet" {
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = ["10.0.1.0/24"]
 }
+
+resource "azurerm_subnet" "private_endpoint_snet" {
+  name                 = "${var.prj}-${var.env}-pe-snet"
+  resource_group_name  = azurerm_resource_group.avd_rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = ["10.0.10.0/24"]
+
+  private_endpoint_network_policies = "Disabled"
+}

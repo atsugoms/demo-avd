@@ -22,3 +22,15 @@ resource "azurerm_subnet_network_security_group_association" "default_snet_nsg_a
   subnet_id                 = azurerm_subnet.hub_default_snet.id
   network_security_group_id = azurerm_network_security_group.default_snet_nsg.id
 }
+
+resource "azurerm_network_security_group" "private_endpoint_snet_nsg" {
+  name                = "${var.prj}-${var.env}-vnet-pe-snet-nsg"
+  location            = azurerm_resource_group.avd_rg.location
+  resource_group_name = azurerm_resource_group.avd_rg.name
+}
+
+resource "azurerm_subnet_network_security_group_association" "private_endpoint_snet_nsg_assoc" {
+  subnet_id                 = azurerm_subnet.private_endpoint_snet.id
+  network_security_group_id = azurerm_network_security_group.private_endpoint_snet_nsg.id
+}
+
