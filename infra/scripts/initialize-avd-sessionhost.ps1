@@ -40,69 +40,69 @@ try {
         -PropertyType DWORD -Value 1 -Force | Out-Null
     Write-Log "✓ FSLogix authentication configured"
 
-    # 3. Install FSLogix
-    Write-Log "Installing FSLogix..."
-    $fslogixDownloadUrl = "https://aka.ms/fslogix-latest"
-    $fslogixInstallPath = "C:\Temp\FSLogixInstaller"
-    $fslogixZipPath = "$fslogixInstallPath\FSLogix.zip"
+    # # 3. Install FSLogix
+    # Write-Log "Installing FSLogix..."
+    # $fslogixDownloadUrl = "https://aka.ms/fslogix-latest"
+    # $fslogixInstallPath = "C:\Temp\FSLogixInstaller"
+    # $fslogixZipPath = "$fslogixInstallPath\FSLogix.zip"
     
-    # Create temp directory
-    if (-not (Test-Path $fslogixInstallPath)) {
-        New-Item -ItemType Directory -Path $fslogixInstallPath -Force | Out-Null
-    }
+    # # Create temp directory
+    # if (-not (Test-Path $fslogixInstallPath)) {
+    #     New-Item -ItemType Directory -Path $fslogixInstallPath -Force | Out-Null
+    # }
     
-    # Download FSLogix
-    Write-Log "Downloading FSLogix from $fslogixDownloadUrl..."
-    $ProgressPreference = 'SilentlyContinue'
-    try {
-        Invoke-WebRequest -Uri $fslogixDownloadUrl -OutFile $fslogixZipPath -UseBasicParsing
-        Write-Log "✓ FSLogix download completed"
-    }
-    catch {
-        Write-Log "⚠ FSLogix download failed: $_"
-    }
+    # # Download FSLogix
+    # Write-Log "Downloading FSLogix from $fslogixDownloadUrl..."
+    # $ProgressPreference = 'SilentlyContinue'
+    # try {
+    #     Invoke-WebRequest -Uri $fslogixDownloadUrl -OutFile $fslogixZipPath -UseBasicParsing
+    #     Write-Log "✓ FSLogix download completed"
+    # }
+    # catch {
+    #     Write-Log "⚠ FSLogix download failed: $_"
+    # }
     
-    # Extract and install FSLogix if download succeeded
-    if (Test-Path $fslogixZipPath) {
-        Write-Log "Extracting FSLogix installer..."
-        try {
-            Expand-Archive -Path $fslogixZipPath -DestinationPath $fslogixInstallPath -Force
-        }
-        catch {
-            Write-Log "⚠ FSLogix extraction failed: $_"
-        }
+    # # Extract and install FSLogix if download succeeded
+    # if (Test-Path $fslogixZipPath) {
+    #     Write-Log "Extracting FSLogix installer..."
+    #     try {
+    #         Expand-Archive -Path $fslogixZipPath -DestinationPath $fslogixInstallPath -Force
+    #     }
+    #     catch {
+    #         Write-Log "⚠ FSLogix extraction failed: $_"
+    #     }
         
-        # Run Release/FSLogixAppsSetup.exe with unattended options.
-        $fslogixExePath = Join-Path $fslogixInstallPath "x64\Release\FSLogixAppsSetup.exe"
-        if (-not (Test-Path $fslogixExePath)) {
-            $fslogixExePath = Get-ChildItem -Path $fslogixInstallPath -Filter "FSLogixAppsSetup.exe" -Recurse -ErrorAction SilentlyContinue |
-                Where-Object { $_.FullName -match "\\Release\\" } |
-                Select-Object -ExpandProperty FullName -First 1
-        }
+    #     # Run Release/FSLogixAppsSetup.exe with unattended options.
+    #     $fslogixExePath = Join-Path $fslogixInstallPath "x64\Release\FSLogixAppsSetup.exe"
+    #     if (-not (Test-Path $fslogixExePath)) {
+    #         $fslogixExePath = Get-ChildItem -Path $fslogixInstallPath -Filter "FSLogixAppsSetup.exe" -Recurse -ErrorAction SilentlyContinue |
+    #             Where-Object { $_.FullName -match "\\Release\\" } |
+    #             Select-Object -ExpandProperty FullName -First 1
+    #     }
 
-        if ($fslogixExePath -and (Test-Path $fslogixExePath)) {
-            Write-Log "Installing FSLogix EXE: $fslogixExePath"
-            $fslogixInstallerLogPath = "C:\Windows\Temp\FSLogixAppsSetup.log"
-            $installArgs = @(
-                "/install",
-                "/quiet",
-                "/norestart",
-                "/log",
-                $fslogixInstallerLogPath
-            )
-            $process = Start-Process -FilePath $fslogixExePath -ArgumentList $installArgs -Wait -PassThru
+    #     if ($fslogixExePath -and (Test-Path $fslogixExePath)) {
+    #         Write-Log "Installing FSLogix EXE: $fslogixExePath"
+    #         $fslogixInstallerLogPath = "C:\Windows\Temp\FSLogixAppsSetup.log"
+    #         $installArgs = @(
+    #             "/install",
+    #             "/quiet",
+    #             "/norestart",
+    #             "/log",
+    #             $fslogixInstallerLogPath
+    #         )
+    #         $process = Start-Process -FilePath $fslogixExePath -ArgumentList $installArgs -Wait -PassThru
             
-            if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010) {
-                Write-Log "✓ FSLogix installation completed"
-            }
-            else {
-                Write-Log "⚠ FSLogix installation returned exit code: $($process.ExitCode)"
-            }
-        }
-        else {
-            Write-Log "⚠ Release/FSLogixAppsSetup.exe not found in FSLogix package"
-        }
-    }
+    #         if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010) {
+    #             Write-Log "✓ FSLogix installation completed"
+    #         }
+    #         else {
+    #             Write-Log "⚠ FSLogix installation returned exit code: $($process.ExitCode)"
+    #         }
+    #     }
+    #     else {
+    #         Write-Log "⚠ Release/FSLogixAppsSetup.exe not found in FSLogix package"
+    #     }
+    # }
 
     # 4. Configure FSLogix Profile Container
     Write-Log "Configuring FSLogix profile container..."
