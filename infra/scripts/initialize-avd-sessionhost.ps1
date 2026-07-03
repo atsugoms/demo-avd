@@ -72,17 +72,25 @@ try {
             Write-Log "⚠ FSLogix extraction failed: $_"
         }
         
-        # Find and execute the installer
-        $msiPath = Get-ChildItem -Path $fslogixInstallPath -Filter "*.msi" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($msiPath) {
-            Write-Log "Installing FSLogix MSI: $($msiPath.FullName)"
+        # Run Release/FSLogixAppsSetup.exe with unattended options.
+        $fslogixExePath = Join-Path $fslogixInstallPath "x64\Release\FSLogixAppsSetup.exe"
+        if (-not (Test-Path $fslogixExePath)) {
+            $fslogixExePath = Get-ChildItem -Path $fslogixInstallPath -Filter "FSLogixAppsSetup.exe" -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -match "\\Release\\" } |
+                Select-Object -ExpandProperty FullName -First 1
+        }
+
+        if ($fslogixExePath -and (Test-Path $fslogixExePath)) {
+            Write-Log "Installing FSLogix EXE: $fslogixExePath"
+            $fslogixInstallerLogPath = "C:\Windows\Temp\FSLogixAppsSetup.log"
             $installArgs = @(
-                "/i",
-                $msiPath.FullName,
-                "/qn",
-                "/norestart"
+                "/install",
+                "/quiet",
+                "/norestart",
+                "/log",
+                $fslogixInstallerLogPath
             )
-            $process = Start-Process -FilePath "msiexec.exe" -ArgumentList $installArgs -Wait -PassThru
+            $process = Start-Process -FilePath $fslogixExePath -ArgumentList $installArgs -Wait -PassThru
             
             if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010) {
                 Write-Log "✓ FSLogix installation completed"
@@ -92,7 +100,7 @@ try {
             }
         }
         else {
-            Write-Log "⚠ MSI file not found in FSLogix package"
+            Write-Log "⚠ Release/FSLogixAppsSetup.exe not found in FSLogix package"
         }
     }
 
