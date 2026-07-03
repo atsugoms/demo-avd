@@ -22,24 +22,6 @@ variable "env" {
   default     = "test"
 }
 
-variable "adds_vm_size" {
-  description = "VM size for ADDS server"
-  type        = string
-  default     = "Standard_D2as_v7"
-}
-
-variable "adds_admin_username" {
-  description = "Admin username for ADDS VM"
-  type        = string
-  default     = "azureuser"
-}
-
-variable "adds_admin_password" {
-  description = "Admin password for ADDS VM"
-  type        = string
-  sensitive   = true
-}
-
 variable "session_host_vm_size" {
   description = "VM size for AVD session hosts"
   type        = string
