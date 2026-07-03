@@ -48,6 +48,10 @@ resource "azurerm_virtual_desktop_workspace_application_group_association" "avd_
 resource "azurerm_virtual_desktop_host_pool_registration_info" "avd_registration_info" {
   hostpool_id     = azurerm_virtual_desktop_host_pool.avd_hostpool.id
   expiration_date = timeadd(timestamp(), "168h") # 7 days
+
+  lifecycle {
+    ignore_changes = [expiration_date]
+  }
 }
 
 # Session Host NIC
@@ -148,4 +152,8 @@ PROTECTED_SETTINGS
     azurerm_virtual_machine_extension.avd_sessionhost_aadlogin,
     azurerm_virtual_desktop_host_pool_registration_info.avd_registration_info
   ]
+
+  lifecycle {
+    ignore_changes = [settings, protected_settings]
+  }
 }
