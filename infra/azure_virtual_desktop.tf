@@ -120,6 +120,28 @@ resource "azurerm_virtual_machine_extension" "avd_sessionhost_aadlogin" {
 SETTINGS
 }
 
+# Custom configuration script for session host initialization
+resource "azurerm_virtual_machine_extension" "avd_sessionhost_custom_config" {
+  count                      = var.session_host_count
+  name                       = "CustomScriptExtension"
+  virtual_machine_id         = azurerm_windows_virtual_machine.avd_sessionhost_win11ent[count.index].id
+  publisher                  = "Microsoft.Compute"
+  type                       = "CustomScriptExtension"
+  type_handler_version       = "1.10"
+  auto_upgrade_minor_version = true
+
+  settings = jsonencode({
+    "fileUris" : [
+      "https://raw.githubusercontent.com/atsugoms/demo-avd/refs/heads/develop/infra/scripts/initialize-avd-sessionhost.ps1"
+    ],
+    "commandToExecute" : "powershell -ExecutionPolicy Bypass -File initialize-avd-sessionhost.ps1 -StorageAccountFQDN \"${azurerm_storage_account.profiles.name}.file.core.windows.net\""
+  })
+
+  depends_on = [
+    azurerm_virtual_machine_extension.avd_sessionhost_aadlogin
+  ]
+}
+
 # Register VM as AVD session host
 resource "azurerm_virtual_machine_extension" "avd_sessionhost_register" {
   count                      = var.session_host_count
@@ -150,6 +172,7 @@ PROTECTED_SETTINGS
 
   depends_on = [
     azurerm_virtual_machine_extension.avd_sessionhost_aadlogin,
+    azurerm_virtual_machine_extension.avd_sessionhost_custom_config,
     azurerm_virtual_desktop_host_pool_registration_info.avd_registration_info
   ]
 
