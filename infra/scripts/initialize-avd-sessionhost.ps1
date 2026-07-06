@@ -2,6 +2,10 @@
 # This script performs required configuration for AVD session hosts
 # StorageAccountFQDN is passed as a variable from Terraform
 
+param(
+    [string]$StorageAccountFQDN
+)
+
 # Logging setup
 $logPath = "C:\Windows\Temp\avd-initialize.log"
 function Write-Log {
