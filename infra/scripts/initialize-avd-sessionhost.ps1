@@ -25,7 +25,7 @@ try {
     
     New-ItemProperty -Path $kerberosRegPath -Name CloudKerberosTicketRetrievalEnabled `
         -PropertyType DWORD -Value 1 -Force | Out-Null
-    Write-Log "✓ Microsoft Entra Kerberos enabled"
+    Write-Log "[OK] Microsoft Entra Kerberos enabled"
 
     # 2. Configure FSLogix authentication in Credential Manager
     Write-Log "Configuring FSLogix authentication settings..."
@@ -38,7 +38,7 @@ try {
     
     New-ItemProperty -Path $azureAdAccountRegPath -Name LoadCredKeyFromProfile `
         -PropertyType DWORD -Value 1 -Force | Out-Null
-    Write-Log "✓ FSLogix authentication configured"
+    Write-Log "[OK] FSLogix authentication configured"
 
     # # 3. Install FSLogix
     # Write-Log "Installing FSLogix..."
@@ -123,11 +123,11 @@ try {
         New-ItemProperty -Path $fslogixRegPath -Name VHDLocations `
             -PropertyType MultiString -Value $profileUNCPath -Force | Out-Null
         
-        Write-Log "✓ FSLogix profile container configured"
+        Write-Log "[OK] FSLogix profile container configured"
         Write-Log "  - Profile UNC Path: $profileUNCPath"
     }
     else {
-        Write-Log "⚠ Storage account FQDN not provided, skipping VHD location configuration"
+        Write-Log "[WARN] Storage account FQDN not provided, skipping VHD location configuration"
     }
 
     # Additional FSLogix optimizations
@@ -145,13 +145,13 @@ try {
     New-ItemProperty -Path $fslogixRegPath -Name ConcurrentUserSessions `
         -PropertyType DWORD -Value 1 -Force | Out-Null
     
-    Write-Log "✓ FSLogix optimizations applied"
+    Write-Log "[OK] FSLogix optimizations applied"
 
-    Write-Log "✓ AVD Session Host Initialization completed successfully"
+    Write-Log "[OK] AVD Session Host Initialization completed successfully"
     exit 0
 }
 catch {
-    Write-Log "✗ Error during initialization: $_"
+    Write-Log "[ERROR] Error during initialization: $_"
     Write-Log "Stack trace: $($_.ScriptStackTrace)"
     exit 1
 }
