@@ -1,5 +1,11 @@
 # Azure Virtual Desktop Resources
 
+# Data source references for Insights configuration
+data "azurerm_monitor_data_collection_rule" "avd_dcr_ref" {
+  name                = azurerm_monitor_data_collection_rule.avd_dcr.name
+  resource_group_name = azurerm_resource_group.avd_rg.name
+}
+
 # Host Pool
 resource "azurerm_virtual_desktop_host_pool" "avd_hostpool" {
   resource_group_name   = azurerm_resource_group.avd_rg.name
@@ -42,6 +48,83 @@ resource "azurerm_virtual_desktop_workspace_application_group_association" "avd_
   workspace_id         = azurerm_virtual_desktop_workspace.avd_workspace.id
   application_group_id = azurerm_virtual_desktop_application_group.avd_dag.id
   depends_on           = [azurerm_virtual_desktop_application_group.avd_dag]
+}
+
+# Diagnostic categories for AVD resources
+data "azurerm_monitor_diagnostic_categories" "avd_hostpool_diag_categories" {
+  resource_id = azurerm_virtual_desktop_host_pool.avd_hostpool.id
+}
+
+data "azurerm_monitor_diagnostic_categories" "avd_dag_diag_categories" {
+  resource_id = azurerm_virtual_desktop_application_group.avd_dag.id
+}
+
+data "azurerm_monitor_diagnostic_categories" "avd_workspace_diag_categories" {
+  resource_id = azurerm_virtual_desktop_workspace.avd_workspace.id
+}
+
+# Send AVD diagnostics to Log Analytics Workspace
+resource "azurerm_monitor_diagnostic_setting" "avd_hostpool_diag" {
+  name                       = "${var.prj}-${var.env}-avd-hostpool-diag"
+  target_resource_id         = azurerm_virtual_desktop_host_pool.avd_hostpool.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.avd_log.id
+
+  dynamic "enabled_log" {
+    for_each = try(data.azurerm_monitor_diagnostic_categories.avd_hostpool_diag_categories.log_category_types, [])
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "metric" {
+    for_each = try(data.azurerm_monitor_diagnostic_categories.avd_hostpool_diag_categories.metrics, [])
+    content {
+      category = metric.value
+      enabled  = true
+    }
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "avd_dag_diag" {
+  name                       = "${var.prj}-${var.env}-avd-dag-diag"
+  target_resource_id         = azurerm_virtual_desktop_application_group.avd_dag.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.avd_log.id
+
+  dynamic "enabled_log" {
+    for_each = try(data.azurerm_monitor_diagnostic_categories.avd_dag_diag_categories.log_category_types, [])
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "metric" {
+    for_each = try(data.azurerm_monitor_diagnostic_categories.avd_dag_diag_categories.metrics, [])
+    content {
+      category = metric.value
+      enabled  = true
+    }
+  }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "avd_workspace_diag" {
+  name                       = "${var.prj}-${var.env}-avd-workspace-diag"
+  target_resource_id         = azurerm_virtual_desktop_workspace.avd_workspace.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.avd_log.id
+
+  dynamic "enabled_log" {
+    for_each = try(data.azurerm_monitor_diagnostic_categories.avd_workspace_diag_categories.log_category_types, [])
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "metric" {
+    for_each = try(data.azurerm_monitor_diagnostic_categories.avd_workspace_diag_categories.metrics, [])
+    content {
+      category = metric.value
+      enabled  = true
+    }
+  }
 }
 
 # Host Pool Registration Info (for joining session hosts)
@@ -101,6 +184,10 @@ resource "azurerm_windows_virtual_machine" "avd_sessionhost_win11ent" {
   }
 
   license_type = "Windows_Client"
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 # Entra ID join (without Intune enrollment)
@@ -179,4 +266,32 @@ PROTECTED_SETTINGS
   lifecycle {
     ignore_changes = [settings, protected_settings]
   }
+}
+
+# Azure Monitor Agent Extension for Session Hosts
+resource "azurerm_virtual_machine_extension" "avd_sessionhost_ama" {
+  count                      = var.session_host_count
+  name                       = "AzureMonitorWindowsAgent"
+  virtual_machine_id         = azurerm_windows_virtual_machine.avd_sessionhost_win11ent[count.index].id
+  publisher                  = "Microsoft.Azure.Monitor"
+  type                       = "AzureMonitorWindowsAgent"
+  type_handler_version       = "1.0"
+  auto_upgrade_minor_version = true
+
+  depends_on = [
+    azurerm_virtual_machine_extension.avd_sessionhost_register
+  ]
+}
+
+# Associate Data Collection Rule with Session Hosts
+resource "azurerm_monitor_data_collection_rule_association" "avd_dcr_assoc" {
+  count                       = var.session_host_count
+  name                        = "avd-dcr-assoc-${count.index}"
+  target_resource_id          = azurerm_windows_virtual_machine.avd_sessionhost_win11ent[count.index].id
+  data_collection_rule_id     = azurerm_monitor_data_collection_rule.avd_dcr.id
+  description                 = "Associate DCR to AVD session host ${count.index + 1}"
+
+  depends_on = [
+    azurerm_virtual_machine_extension.avd_sessionhost_ama
+  ]
 }
