@@ -1,0 +1,274 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Azure Virtual Desktop Infrastructure - Root Template (Resource Group Level Deployment)"
+  },
+  "parameters": {
+    "tenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure Tenant ID"
+      }
+    },
+    "prj": {
+      "type": "string",
+      "defaultValue": "at-avd",
+      "metadata": {
+        "description": "Project name"
+      }
+    },
+    "env": {
+      "type": "string",
+      "defaultValue": "test",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "japaneast",
+      "metadata": {
+        "description": "Azure region for resources"
+      }
+    },
+    "sessionHostVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_B2as_v2",
+      "metadata": {
+        "description": "VM size for AVD session hosts"
+      }
+    },
+    "sessionHostAdminUsername": {
+      "type": "string",
+      "defaultValue": "azureuser",
+      "metadata": {
+        "description": "Admin username for AVD session hosts"
+      }
+    },
+    "sessionHostAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin password for AVD session hosts"
+      }
+    },
+    "sessionHostCount": {
+      "type": "int",
+      "defaultValue": 1,
+      "metadata": {
+        "description": "Number of AVD session hosts to create"
+      }
+    },
+    "addressSpace": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/16",
+      "metadata": {
+        "description": "Virtual Network address space"
+      }
+    },
+    "defaultSubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.1.0/24",
+      "metadata": {
+        "description": "Default subnet address prefix"
+      }
+    },
+    "privateEndpointSubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.10.0/24",
+      "metadata": {
+        "description": "Private endpoint subnet address prefix"
+      }
+    }
+  },
+  "variables": {
+    "deploymentApiVersion": "2021-04-01",
+    "baseUri": "[uri(deployment().properties.templateLink.uri, '.')]",
+    "resourceGroupName": "[concat(parameters('prj'), '-', parameters('env'), '-rg')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "[variables('deploymentApiVersion')]",
+      "name": "networkDeployment",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[uri(variables('baseUri'), 'network.json')]"
+        },
+        "parameters": {
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceGroupName": {
+            "value": "[variables('resourceGroupName')]"
+          },
+          "addressSpace": {
+            "value": "[parameters('addressSpace')]"
+          },
+          "defaultSubnetPrefix": {
+            "value": "[parameters('defaultSubnetPrefix')]"
+          },
+          "privateEndpointSubnetPrefix": {
+            "value": "[parameters('privateEndpointSubnetPrefix')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "[variables('deploymentApiVersion')]",
+      "name": "nsgDeployment",
+      "dependsOn": [
+        "networkDeployment"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[uri(variables('baseUri'), 'nsg.json')]"
+        },
+        "parameters": {
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceGroupName": {
+            "value": "[variables('resourceGroupName')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "[variables('deploymentApiVersion')]",
+      "name": "storageAccountDeployment",
+      "dependsOn": [
+        "networkDeployment"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[uri(variables('baseUri'), 'storage_account.json')]"
+        },
+        "parameters": {
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceGroupName": {
+            "value": "[variables('resourceGroupName')]"
+          },
+          "tenantId": {
+            "value": "[parameters('tenantId')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "[variables('deploymentApiVersion')]",
+      "name": "monitorDeployment",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[uri(variables('baseUri'), 'monitor.json')]"
+        },
+        "parameters": {
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceGroupName": {
+            "value": "[variables('resourceGroupName')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "[variables('deploymentApiVersion')]",
+      "name": "groupDeployment",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[uri(variables('baseUri'), 'group.json')]"
+        },
+        "parameters": {
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "tenantId": {
+            "value": "[parameters('tenantId')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "[variables('deploymentApiVersion')]",
+      "name": "azureVirtualDesktopDeployment",
+      "dependsOn": [
+        "nsgDeployment",
+        "storageAccountDeployment",
+        "monitorDeployment",
+        "groupDeployment"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[uri(variables('baseUri'), 'azure_virtual_desktop.json')]"
+        },
+        "parameters": {
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceGroupName": {
+            "value": "[variables('resourceGroupName')]"
+          },
+          "sessionHostVmSize": {
+            "value": "[parameters('sessionHostVmSize')]"
+          },
+          "sessionHostAdminUsername": {
+            "value": "[parameters('sessionHostAdminUsername')]"
+          },
+          "sessionHostAdminPassword": {
+            "value": "[parameters('sessionHostAdminPassword')]"
+          },
+          "sessionHostCount": {
+            "value": "[parameters('sessionHostCount')]"
+          }
+        }
+      }
+    }
+  ]
+}

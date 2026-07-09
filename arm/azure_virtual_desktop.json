@@ -1,0 +1,318 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Azure Virtual Desktop Resources including Host Pool, Application Group, Workspace, and Session Hosts"
+  },
+  "parameters": {
+    "prj": {
+      "type": "string",
+      "metadata": {
+        "description": "Project name"
+      }
+    },
+    "env": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure region for resources"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the resource group"
+      }
+    },
+    "sessionHostVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_B2as_v2",
+      "metadata": {
+        "description": "VM size for AVD session hosts"
+      }
+    },
+    "sessionHostAdminUsername": {
+      "type": "string",
+      "defaultValue": "azureuser",
+      "metadata": {
+        "description": "Admin username for AVD session hosts"
+      }
+    },
+    "sessionHostAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin password for AVD session hosts"
+      }
+    },
+    "sessionHostCount": {
+      "type": "int",
+      "defaultValue": 1,
+      "metadata": {
+        "description": "Number of AVD session hosts to create"
+      }
+    }
+  },
+  "variables": {
+    "hostPoolName": "[concat(parameters('prj'), '-', parameters('env'), '-hostpool')]",
+    "applicationGroupName": "[concat(parameters('prj'), '-', parameters('env'), '-dag')]",
+    "workspaceName": "[concat(parameters('prj'), '-', parameters('env'), '-workspace')]",
+    "vnetName": "[concat(parameters('prj'), '-', parameters('env'), '-vnet')]",
+    "defaultSubnetName": "[concat(parameters('prj'), '-', parameters('env'), '-default-snet')]",
+    "scriptUri": "https://raw.githubusercontent.com/atsugoms/demo-avd/refs/heads/develop/infra/scripts/initialize-avd-sessionhost.ps1",
+    "customRdpProperties": "enablerdsaadauth:i:1;targetisaadjoined:i:1;"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DesktopVirtualization/hostPools",
+      "apiVersion": "2022-09-09",
+      "name": "[variables('hostPoolName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "friendlyName": "[concat(parameters('prj'), '-', parameters('env'), ' AVD Host Pool')]",
+        "description": "[concat('AVD Host Pool for ', parameters('prj'), '-', parameters('env'))]",
+        "hostPoolType": "Pooled",
+        "loadBalancerType": "BreadthFirst",
+        "customRdpProperty": "[variables('customRdpProperties')]",
+        "validationEnvironment": false,
+        "scheduledAgentUpdates": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DesktopVirtualization/applicationGroups",
+      "apiVersion": "2022-09-09",
+      "name": "[variables('applicationGroupName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "friendlyName": "[concat(parameters('prj'), '-', parameters('env'), ' Desktop Application Group')]",
+        "description": "[concat('Desktop Application Group for ', parameters('prj'), '-', parameters('env'))]",
+        "applicationGroupType": "Desktop",
+        "hostPoolArmPath": "[resourceId('Microsoft.DesktopVirtualization/hostPools', variables('hostPoolName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/hostPools', variables('hostPoolName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DesktopVirtualization/workspaces",
+      "apiVersion": "2022-09-09",
+      "name": "[variables('workspaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "friendlyName": "[concat(parameters('prj'), '-', parameters('env'), ' Workspace')]",
+        "description": "[concat('AVD Workspace for ', parameters('prj'), '-', parameters('env'))]"
+      }
+    },
+    {
+      "type": "Microsoft.DesktopVirtualization/workspaces/applicationGroups",
+      "apiVersion": "2022-09-09",
+      "name": "[concat(variables('workspaceName'), '/', variables('applicationGroupName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/workspaces', variables('workspaceName'))]",
+        "[resourceId('Microsoft.DesktopVirtualization/applicationGroups', variables('applicationGroupName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DesktopVirtualization/hostPools/registrationInfos",
+      "apiVersion": "2022-09-09",
+      "name": "[concat(variables('hostPoolName'), '/default')]",
+      "properties": {
+        "expirationTime": "[dateTimeAdd(utcNow(), 'PT7H')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/hostPools', variables('hostPoolName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2021-05-01",
+      "name": "[format('{0}-{1}-win11ent-{2:02d}-nic', parameters('prj'), parameters('env'), copyIndex(1))]",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "nicCopy",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "internal",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('defaultSubnetName'))]"
+              },
+              "privateIPAllocationMethod": "Dynamic"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2021-07-01",
+      "name": "[format('{0}-{1}-win11ent-{2:02d}', parameters('prj'), parameters('env'), copyIndex(1))]",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "vmCopy",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('sessionHostVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[format('win11ent-{0:02d}', copyIndex(1))]",
+          "adminUsername": "[parameters('sessionHostAdminUsername')]",
+          "adminPassword": "[parameters('sessionHostAdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsDesktop",
+            "offer": "windows-11",
+            "sku": "win11-25h2-avd",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[format('{0}-{1}-win11ent-{2:02d}-osdisk', parameters('prj'), parameters('env'), copyIndex(1))]",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "StandardSSD_LRS"
+            },
+            "diskSizeGB": 128
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-{1}-win11ent-{2:02d}-nic', parameters('prj'), parameters('env'), copyIndex(1)))]"
+            }
+          ]
+        },
+        "licenseType": "Windows_Client"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-{1}-win11ent-{2:02d}-nic', parameters('prj'), parameters('env'), copyIndex(1)))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2021-07-01",
+      "name": "[format('{0}-{1}-win11ent-{2:02d}/AADLoginForWindows', parameters('prj'), parameters('env'), copyIndex(1))]",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "aadLoginCopy",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "properties": {
+        "publisher": "Microsoft.Azure.ActiveDirectory",
+        "type": "AADLoginForWindows",
+        "typeHandlerVersion": "2.2",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "mdmId": ""
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}-win11ent-{2:02d}', parameters('prj'), parameters('env'), copyIndex(1)))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2021-07-01",
+      "name": "[format('{0}-{1}-win11ent-{2:02d}/CustomScriptExtension', parameters('prj'), parameters('env'), copyIndex(1))]",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "customScriptCopy",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.10",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "[variables('scriptUri')]"
+          ],
+          "commandToExecute": "powershell -ExecutionPolicy Bypass -File initialize-avd-sessionhost.ps1"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', format('{0}-{1}-win11ent-{2:02d}', parameters('prj'), parameters('env'), copyIndex(1)), 'AADLoginForWindows')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2021-07-01",
+      "name": "[format('{0}-{1}-win11ent-{2:02d}/DSC', parameters('prj'), parameters('env'), copyIndex(1))]",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "dscCopy",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "properties": {
+        "publisher": "Microsoft.Powershell",
+        "type": "DSC",
+        "typeHandlerVersion": "2.73",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "modulesUrl": "https://wvdportalstorageblob.blob.core.windows.net/galleryartifacts/Configuration_1.0.02714.342.zip",
+          "configurationFunction": "Configuration.ps1\\AddSessionHost",
+          "properties": {
+            "hostPoolName": "[variables('hostPoolName')]"
+          }
+        },
+        "protectedSettings": {
+          "properties": {
+            "registrationInfoToken": "[reference(resourceId('Microsoft.DesktopVirtualization/hostPools/registrationInfos', variables('hostPoolName'), 'default')).token]"
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', format('{0}-{1}-win11ent-{2:02d}', parameters('prj'), parameters('env'), copyIndex(1)), 'CustomScriptExtension')]",
+        "[resourceId('Microsoft.DesktopVirtualization/hostPools/registrationInfos', variables('hostPoolName'), 'default')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2021-07-01",
+      "name": "[format('{0}-{1}-win11ent-{2:02d}/AzureMonitorWindowsAgent', parameters('prj'), parameters('env'), copyIndex(1))]",
+      "location": "[parameters('location')]",
+      "copy": {
+        "name": "amaCopy",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "properties": {
+        "publisher": "Microsoft.Azure.Monitor",
+        "type": "AzureMonitorWindowsAgent",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', format('{0}-{1}-win11ent-{2:02d}', parameters('prj'), parameters('env'), copyIndex(1)), 'DSC')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "hostPoolId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DesktopVirtualization/hostPools', variables('hostPoolName'))]"
+    },
+    "applicationGroupId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DesktopVirtualization/applicationGroups', variables('applicationGroupName'))]"
+    },
+    "workspaceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DesktopVirtualization/workspaces', variables('workspaceName'))]"
+    }
+  }
+}

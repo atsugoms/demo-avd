@@ -1,0 +1,98 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Azure Bastion template for AVD infrastructure (currently disabled)"
+  },
+  "parameters": {
+    "prj": {
+      "type": "string",
+      "metadata": {
+        "description": "Project name"
+      }
+    },
+    "env": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure region for resources"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the resource group"
+      }
+    },
+    "deployBastion": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Set to true to deploy Azure Bastion"
+      }
+    }
+  },
+  "conditions": [
+    {
+      "name": "deployBastionCondition",
+      "value": "[parameters('deployBastion')]"
+    }
+  ],
+  "variables": {
+    "bastionName": "[concat(parameters('prj'), '-', parameters('env'), '-bastion')]",
+    "bastionSubnetName": "AzureBastionSubnet",
+    "vnetName": "[concat(parameters('prj'), '-', parameters('env'), '-vnet')]",
+    "publicIpName": "[concat(parameters('prj'), '-', parameters('env'), '-bastion-pip')]"
+  },
+  "resources": [
+    {
+      "condition": "[parameters('deployBastion')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('publicIpName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      }
+    },
+    {
+      "condition": "[parameters('deployBastion')]",
+      "type": "Microsoft.Network/bastionHosts",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('bastionName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "IpConf",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('bastionSubnetName'))]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+              }
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "bastionId": {
+      "type": "string",
+      "value": "[if(parameters('deployBastion'), resourceId('Microsoft.Network/bastionHosts', variables('bastionName')), '')]"
+    }
+  }
+}

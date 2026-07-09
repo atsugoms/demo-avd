@@ -1,0 +1,76 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Azure AD Groups and Role Assignments for AVD"
+  },
+  "parameters": {
+    "prj": {
+      "type": "string",
+      "metadata": {
+        "description": "Project name"
+      }
+    },
+    "env": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "tenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure Tenant ID"
+      }
+    }
+  },
+  "variables": {
+    "avdUsersGroupName": "[concat(parameters('prj'), '-', parameters('env'), '-avd-users')]",
+    "avdAdminsGroupName": "[concat(parameters('prj'), '-', parameters('env'), '-avd-admins')]",
+    "desktopVirtualizationUserRole": "1d6a5214-794f-4db6-b237-db72e693047f",
+    "virtualMachineUserLoginRole": "fb879df8-f326-4884-b1c8-aee75b0efc6a",
+    "virtualMachineAdministratorLoginRole": "1c0163c0-47e6-4577-8991-ea5c82e2a04f"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-10-01-preview",
+      "name": "[guid(subscription().id, variables('desktopVirtualizationUserRole'))]",
+      "scope": "[subscription()]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('desktopVirtualizationUserRole'))]",
+        "principalType": "Group"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-10-01-preview",
+      "name": "[guid(subscription().id, variables('virtualMachineUserLoginRole'))]",
+      "scope": "[subscription()]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('virtualMachineUserLoginRole'))]",
+        "principalType": "Group"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-10-01-preview",
+      "name": "[guid(subscription().id, variables('virtualMachineAdministratorLoginRole'))]",
+      "scope": "[subscription()]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('virtualMachineAdministratorLoginRole'))]",
+        "principalType": "Group"
+      }
+    }
+  ],
+  "outputs": {
+    "avdUsersGroupName": {
+      "type": "string",
+      "value": "[variables('avdUsersGroupName')]"
+    },
+    "avdAdminsGroupName": {
+      "type": "string",
+      "value": "[variables('avdAdminsGroupName')]"
+    }
+  }
+}

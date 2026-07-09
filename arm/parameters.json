@@ -1,0 +1,81 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2021-09-09/uiFormDefinition.schema.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "tenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure Tenant ID"
+      }
+    },
+    "prj": {
+      "type": "string",
+      "defaultValue": "at-avd",
+      "metadata": {
+        "description": "Project name"
+      }
+    },
+    "env": {
+      "type": "string",
+      "defaultValue": "test",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "japaneast",
+      "metadata": {
+        "description": "Azure region for resources"
+      }
+    },
+    "sessionHostVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_B2as_v2",
+      "metadata": {
+        "description": "VM size for AVD session hosts"
+      }
+    },
+    "sessionHostAdminUsername": {
+      "type": "string",
+      "defaultValue": "azureuser",
+      "metadata": {
+        "description": "Admin username for AVD session hosts"
+      }
+    },
+    "sessionHostAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin password for AVD session hosts"
+      }
+    },
+    "sessionHostCount": {
+      "type": "int",
+      "defaultValue": 1,
+      "metadata": {
+        "description": "Number of AVD session hosts to create"
+      }
+    },
+    "addressSpace": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/16",
+      "metadata": {
+        "description": "Virtual Network address space"
+      }
+    },
+    "defaultSubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.1.0/24",
+      "metadata": {
+        "description": "Default subnet address prefix"
+      }
+    },
+    "privateEndpointSubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.10.0/24",
+      "metadata": {
+        "description": "Private endpoint subnet address prefix"
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Resource Group template for AVD infrastructure"
+  },
+  "parameters": {
+    "prj": {
+      "type": "string",
+      "metadata": {
+        "description": "Project name"
+      }
+    },
+    "env": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure region for resources"
+      }
+    }
+  },
+  "variables": {
+    "resourceGroupName": "[concat(parameters('prj'), '-', parameters('env'), '-rg')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[variables('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "properties": {}
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[variables('resourceGroupName')]"
+    },
+    "resourceGroupId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+    }
+  }
+}

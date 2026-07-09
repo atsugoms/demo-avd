@@ -1,0 +1,166 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Storage Account template for AVD FSLogix profiles"
+  },
+  "parameters": {
+    "prj": {
+      "type": "string",
+      "metadata": {
+        "description": "Project name"
+      }
+    },
+    "env": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure region for resources"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the resource group"
+      }
+    },
+    "tenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure Tenant ID"
+      }
+    }
+  },
+  "variables": {
+    "storageAccountName": "[substring(replace(concat(replace(parameters('prj'), '-', ''), replace(parameters('env'), '-', ''), 'profilessa'), '-', ''), 0, 24)]",
+    "storageFileServiceName": "default",
+    "storageShareName": "profiles",
+    "privateEndpointName": "[concat(parameters('prj'), '-', parameters('env'), '-st-file-pe')]",
+    "privateEndpointNicName": "[concat(parameters('prj'), '-', parameters('env'), '-st-file-nic')]",
+    "privateDnsZoneName": "privatelink.file.core.windows.net",
+    "vnetName": "[concat(parameters('prj'), '-', parameters('env'), '-vnet')]",
+    "peSubnetName": "[concat(parameters('prj'), '-', parameters('env'), '-pe-snet')]",
+    "dnzLinkName": "[concat(parameters('prj'), '-', parameters('env'), '-storage-file-dns-link')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-09-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "accessTier": "Hot",
+        "publicNetworkAccess": "Disabled",
+        "allowSharedKeyAccess": true,
+        "azureFilesIdentityBasedAuthentication": {
+          "directoryServiceOptions": "AADKERB"
+        }
+      },
+      "tags": {
+        "SecurityControl": "Ignore"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2021-09-01",
+      "name": "[concat(variables('storageAccountName'), '/', variables('storageFileServiceName'), '/', variables('storageShareName'))]",
+      "properties": {
+        "shareQuota": 100,
+        "enabledProtocols": "SMB"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2018-09-01",
+      "name": "[variables('privateDnsZoneName')]",
+      "location": "global",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2018-09-01",
+      "name": "[concat(variables('privateDnsZoneName'), '/', variables('dnzLinkName'))]",
+      "location": "global",
+      "properties": {
+        "registrationEnabled": false,
+        "virtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('privateEndpointName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "subnet": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('peSubnetName'))]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "[concat(parameters('prj'), '-', parameters('env'), '-st-file-psc')]",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+              "groupIds": [
+                "file"
+              ]
+            }
+          }
+        ],
+        "customNetworkInterfaceName": "[variables('privateEndpointNicName')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+      "apiVersion": "2021-05-01",
+      "name": "[concat(variables('privateEndpointName'), '/storage-file-dns-zone-group')]",
+      "properties": {
+        "privateDnsZoneConfigs": [
+          {
+            "name": "storage-file-dns-config",
+            "properties": {
+              "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateEndpoints', variables('privateEndpointName'))]",
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "storageAccountId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[variables('storageAccountName')]"
+    },
+    "storageAccountFqdn": {
+      "type": "string",
+      "value": "[concat(variables('storageAccountName'), '.file.core.windows.net')]"
+    }
+  }
+}

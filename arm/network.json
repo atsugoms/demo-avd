@@ -1,0 +1,107 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Virtual Network and Subnets template for AVD infrastructure"
+  },
+  "parameters": {
+    "prj": {
+      "type": "string",
+      "metadata": {
+        "description": "Project name"
+      }
+    },
+    "env": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure region for resources"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the resource group"
+      }
+    },
+    "addressSpace": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/16",
+      "metadata": {
+        "description": "Virtual Network address space"
+      }
+    },
+    "defaultSubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.1.0/24",
+      "metadata": {
+        "description": "Default subnet address prefix"
+      }
+    },
+    "privateEndpointSubnetPrefix": {
+      "type": "string",
+      "defaultValue": "10.0.10.0/24",
+      "metadata": {
+        "description": "Private endpoint subnet address prefix"
+      }
+    }
+  },
+  "variables": {
+    "virtualNetworkName": "[concat(parameters('prj'), '-', parameters('env'), '-vnet')]",
+    "defaultSubnetName": "[concat(parameters('prj'), '-', parameters('env'), '-default-snet')]",
+    "privateEndpointSubnetName": "[concat(parameters('prj'), '-', parameters('env'), '-pe-snet')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('virtualNetworkName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('addressSpace')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('defaultSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('defaultSubnetPrefix')]"
+            }
+          },
+          {
+            "name": "[variables('privateEndpointSubnetName')]",
+            "properties": {
+              "addressPrefix": "[parameters('privateEndpointSubnetPrefix')]",
+              "privateEndpointNetworkPolicies": "Disabled"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "virtualNetworkId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]"
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "value": "[variables('virtualNetworkName')]"
+    },
+    "defaultSubnetId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('defaultSubnetName'))]"
+    },
+    "privateEndpointSubnetId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('privateEndpointSubnetName'))]"
+    }
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Network Security Groups template for AVD infrastructure"
+  },
+  "parameters": {
+    "prj": {
+      "type": "string",
+      "metadata": {
+        "description": "Project name"
+      }
+    },
+    "env": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure region for resources"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the resource group"
+      }
+    }
+  },
+  "variables": {
+    "defaultSubnetNsgName": "[concat(parameters('prj'), '-', parameters('env'), '-vnet-default-snet-nsg')]",
+    "privateEndpointNsgName": "[concat(parameters('prj'), '-', parameters('env'), '-vnet-pe-snet-nsg')]",
+    "defaultSubnetName": "[concat(parameters('prj'), '-', parameters('env'), '-default-snet')]",
+    "privateEndpointSubnetName": "[concat(parameters('prj'), '-', parameters('env'), '-pe-snet')]",
+    "vnetName": "[concat(parameters('prj'), '-', parameters('env'), '-vnet')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('defaultSubnetNsgName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "AllowRdpFromAzureBastion",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('privateEndpointNsgName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": []
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "name": "subnetNsgAssociation",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2021-05-01",
+              "name": "[concat(variables('vnetName'), '/', variables('defaultSubnetName'))]",
+              "properties": {
+                "addressPrefix": "10.0.1.0/24",
+                "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('defaultSubnetNsgName'))]"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2021-05-01",
+              "name": "[concat(variables('vnetName'), '/', variables('privateEndpointSubnetName'))]",
+              "properties": {
+                "addressPrefix": "10.0.10.0/24",
+                "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('privateEndpointNsgName'))]"
+                },
+                "privateEndpointNetworkPolicies": "Disabled"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "defaultSubnetNsgId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('defaultSubnetNsgName'))]"
+    },
+    "privateEndpointNsgId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('privateEndpointNsgName'))]"
+    }
+  }
+}
