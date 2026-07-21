@@ -22,20 +22,31 @@ variable "env" {
   default     = "test"
 }
 
-variable "adds_vm_size" {
-  description = "VM size for ADDS server"
+variable "session_host_vm_size" {
+  description = "VM size for AVD session hosts"
   type        = string
-  default     = "Standard_D2as_v7"
+  default     = "Standard_B2as_v2"
 }
 
-variable "adds_admin_username" {
-  description = "Admin username for ADDS VM"
+variable "session_host_admin_username" {
+  description = "Admin username for AVD session hosts"
   type        = string
   default     = "azureuser"
 }
 
-variable "adds_admin_password" {
-  description = "Admin password for ADDS VM"
+variable "session_host_admin_password" {
+  description = "Admin password for AVD session hosts"
   type        = string
   sensitive   = true
+}
+
+variable "session_host_count" {
+  description = "Number of AVD session hosts to create"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.session_host_count >= 1
+    error_message = "session_host_count must be greater than or equal to 1."
+  }
 }
