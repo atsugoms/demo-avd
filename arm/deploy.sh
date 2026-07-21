@@ -48,6 +48,7 @@ OPTIONS:
     -c, --count COUNT              Number of session hosts (default: 1)
     -v, --vm-size SIZE             Session host VM size (default: Standard_B2as_v2)
     -n, --deployment-name NAME     Deployment name (default: avd-deployment)
+    -a, --artifacts-location URL   Base URI for linked templates (default: GitHub main branch raw URL)
     -d, --dry-run                  Validate template without deploying
     -h, --help                     Show this help message
 
@@ -65,6 +66,7 @@ SUBSCRIPTION_ID=""
 TENANT_ID=""
 SESSION_HOST_ADMIN_PASSWORD=""
 DEPLOYMENT_NAME="avd-deployment"
+ARTIFACTS_LOCATION=""
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
@@ -107,6 +109,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -n|--deployment-name)
             DEPLOYMENT_NAME="$2"
+            shift 2
+            ;;
+        -a|--artifacts-location)
+            ARTIFACTS_LOCATION="$2"
             shift 2
             ;;
         -d|--dry-run)
@@ -192,18 +198,17 @@ fi
 echo ""
 if [[ "$DRY_RUN" == true ]]; then
     print_message "Running template validation (dry-run mode)..."
+    VALIDATE_PARAMS=(tenantId="$TENANT_ID" prj="$PROJECT" env="$ENVIRONMENT" location="$LOCATION" \
+        sessionHostVmSize="$SESSION_HOST_VM_SIZE" sessionHostAdminUsername="$SESSION_HOST_ADMIN_USERNAME" \
+        sessionHostAdminPassword="$SESSION_HOST_ADMIN_PASSWORD" sessionHostCount=$SESSION_HOST_COUNT)
+    if [[ -n "$ARTIFACTS_LOCATION" ]]; then
+        VALIDATE_PARAMS+=(_artifactsLocation="$ARTIFACTS_LOCATION")
+    fi
+
     az deployment group validate \
         --resource-group "$RESOURCE_GROUP_NAME" \
         --template-file "$TEMPLATE_FILE" \
-        --parameters \
-            tenantId="$TENANT_ID" \
-            prj="$PROJECT" \
-            env="$ENVIRONMENT" \
-            location="$LOCATION" \
-            sessionHostVmSize="$SESSION_HOST_VM_SIZE" \
-            sessionHostAdminUsername="$SESSION_HOST_ADMIN_USERNAME" \
-            sessionHostAdminPassword="$SESSION_HOST_ADMIN_PASSWORD" \
-            sessionHostCount=$SESSION_HOST_COUNT
+        --parameters "${VALIDATE_PARAMS[@]}"
     
     if [[ $? -eq 0 ]]; then
         print_message "Template validation successful!"
@@ -214,19 +219,18 @@ else
     print_message "Deploying template to resource group..."
     echo ""
     
+    DEPLOY_PARAMS=(tenantId="$TENANT_ID" prj="$PROJECT" env="$ENVIRONMENT" location="$LOCATION" \
+        sessionHostVmSize="$SESSION_HOST_VM_SIZE" sessionHostAdminUsername="$SESSION_HOST_ADMIN_USERNAME" \
+        sessionHostAdminPassword="$SESSION_HOST_ADMIN_PASSWORD" sessionHostCount=$SESSION_HOST_COUNT)
+    if [[ -n "$ARTIFACTS_LOCATION" ]]; then
+        DEPLOY_PARAMS+=(_artifactsLocation="$ARTIFACTS_LOCATION")
+    fi
+
     az deployment group create \
         --resource-group "$RESOURCE_GROUP_NAME" \
         --name "$DEPLOYMENT_NAME" \
         --template-file "$TEMPLATE_FILE" \
-        --parameters \
-            tenantId="$TENANT_ID" \
-            prj="$PROJECT" \
-            env="$ENVIRONMENT" \
-            location="$LOCATION" \
-            sessionHostVmSize="$SESSION_HOST_VM_SIZE" \
-            sessionHostAdminUsername="$SESSION_HOST_ADMIN_USERNAME" \
-            sessionHostAdminPassword="$SESSION_HOST_ADMIN_PASSWORD" \
-            sessionHostCount=$SESSION_HOST_COUNT
+        --parameters "${DEPLOY_PARAMS[@]}"
     
     if [[ $? -eq 0 ]]; then
         echo ""

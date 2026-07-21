@@ -59,6 +59,13 @@
         "description": "Number of AVD session hosts to create"
       }
     },
+    "_artifactsLocation": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/atsugoms/demo-avd/main/arm/",
+      "metadata": {
+        "description": "Base URI for linked ARM templates (e.g. Azure Blob Storage or GitHub raw URL)"
+      }
+    },
     "addressSpace": {
       "type": "string",
       "defaultValue": "10.0.0.0/16",
@@ -83,7 +90,7 @@
   },
   "variables": {
     "deploymentApiVersion": "2021-04-01",
-    "baseUri": "[uri(deployment().properties.templateLink.uri, '.')]",
+    "baseUri": "[parameters('_artifactsLocation')]",
     "resourceGroupName": "[concat(parameters('prj'), '-', parameters('env'), '-rg')]"
   },
   "resources": [
