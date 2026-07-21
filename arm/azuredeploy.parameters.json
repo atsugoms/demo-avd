@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "japaneast"
+    },
+    "prj": {
+      "value": "at-avd"
+    },
+    "env": {
+      "value": "armtest"
+    },
+    "sessionHostVmSize": {
+      "value": "Standard_B2as_v2"
+    },
+    "sessionHostAdminUsername": {
+      "value": "azureuser"
+    },
+    "sessionHostAdminPassword": {
+      "value": "ReplaceWithStrongPassword!"
+    },
+    "sessionHostCount": {
+      "value": 0
+    },
+    "sessionHostImageSku": {
+      "value": "win11-25h2-avd"
+    }
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "rgName": {
+      "type": "string"
+    },
+    "prj": {
+      "type": "string"
+    },
+    "env": {
+      "type": "string"
+    },
+    "hostPoolName": {
+      "type": "string"
+    },
+    "applicationGroupName": {
+      "type": "string"
+    },
+    "workspaceName": {
+      "type": "string"
+    },
+    "logAnalyticsWorkspaceId": {
+      "type": "string"
+    },
+    "sessionHostCount": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "registrationExpiration": {
+      "type": "string",
+      "defaultValue": "[dateTimeAdd(utcNow('u'), 'P7D')]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DesktopVirtualization/hostPools",
+      "apiVersion": "2024-04-03",
+      "name": "[parameters('hostPoolName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "friendlyName": "[format('{0}-{1} AVD Host Pool', parameters('prj'), parameters('env'))]",
+        "description": "[format('AVD Host Pool for {0}-{1}', parameters('prj'), parameters('env'))]",
+        "hostPoolType": "Pooled",
+        "loadBalancerType": "BreadthFirst",
+        "validationEnvironment": false,
+        "customRdpProperty": "enablerdsaadauth:i:1;targetisaadjoined:i:1;",
+        "preferredAppGroupType": "Desktop",
+        "startVMOnConnect": false,
+        "publicNetworkAccess": "Enabled",
+        "scheduledAgentUpdates": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DesktopVirtualization/hostPools/registrationInfo",
+      "apiVersion": "2024-04-03",
+      "condition": "[greater(parameters('sessionHostCount'), 0)]",
+      "name": "[format('{0}/default', parameters('hostPoolName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName'))]"
+      ],
+      "properties": {
+        "expirationTime": "[parameters('registrationExpiration')]",
+        "registrationTokenOperation": "Update"
+      }
+    },
+    {
+      "type": "Microsoft.DesktopVirtualization/applicationGroups",
+      "apiVersion": "2024-04-03",
+      "name": "[parameters('applicationGroupName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName'))]"
+      ],
+      "properties": {
+        "friendlyName": "[format('{0}-{1} Desktop Application Group', parameters('prj'), parameters('env'))]",
+        "description": "[format('Desktop Application Group for {0}-{1}', parameters('prj'), parameters('env'))]",
+        "applicationGroupType": "Desktop",
+        "hostPoolArmPath": "[resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName'))]"
+      }
+    },
+    {
+      "type": "Microsoft.DesktopVirtualization/workspaces",
+      "apiVersion": "2024-04-03",
+      "name": "[parameters('workspaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "friendlyName": "[format('{0}-{1} Workspace', parameters('prj'), parameters('env'))]",
+        "description": "[format('AVD Workspace for {0}-{1}', parameters('prj'), parameters('env'))]",
+        "publicNetworkAccess": "Enabled",
+        "applicationGroupReferences": [
+          "[resourceId('Microsoft.DesktopVirtualization/applicationGroups', parameters('applicationGroupName'))]"
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "name": "[format('{0}-{1}-avd-hostpool-diag', parameters('prj'), parameters('env'))]",
+      "scope": "[resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName'))]"
+      ],
+      "properties": {
+        "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "name": "[format('{0}-{1}-avd-dag-diag', parameters('prj'), parameters('env'))]",
+      "scope": "[resourceId('Microsoft.DesktopVirtualization/applicationGroups', parameters('applicationGroupName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/applicationGroups', parameters('applicationGroupName'))]"
+      ],
+      "properties": {
+        "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "name": "[format('{0}-{1}-avd-workspace-diag', parameters('prj'), parameters('env'))]",
+      "scope": "[resourceId('Microsoft.DesktopVirtualization/workspaces', parameters('workspaceName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DesktopVirtualization/workspaces', parameters('workspaceName'))]"
+      ],
+      "properties": {
+        "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "hostPoolId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.DesktopVirtualization/hostPools', parameters('hostPoolName'))]"
+    },
+    "registrationToken": {
+      "type": "string",
+      "value": "[if(greater(parameters('sessionHostCount'), 0), reference(resourceId('Microsoft.DesktopVirtualization/hostPools/registrationInfo', parameters('hostPoolName'), 'default'), '2024-04-03').token, '')]"
+    }
+  }
+}

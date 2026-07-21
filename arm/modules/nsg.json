@@ -1,0 +1,104 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "rgName": {
+      "type": "string"
+    },
+    "prj": {
+      "type": "string"
+    },
+    "env": {
+      "type": "string"
+    },
+    "vnetName": {
+      "type": "string"
+    },
+    "defaultSubnetName": {
+      "type": "string"
+    },
+    "defaultSubnetPrefix": {
+      "type": "string"
+    },
+    "peSubnetName": {
+      "type": "string"
+    },
+    "peSubnetPrefix": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "defaultNsgName": "[format('{0}-{1}-vnet-default-snet-nsg', parameters('prj'), parameters('env'))]",
+    "peNsgName": "[format('{0}-{1}-vnet-pe-snet-nsg', parameters('prj'), parameters('env'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('defaultNsgName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "AllowRdpFromAzureBastion",
+            "properties": {
+              "priority": 100,
+              "protocol": "Tcp",
+              "access": "Allow",
+              "direction": "Inbound",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "*"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('peNsgName')]",
+      "location": "[parameters('location')]",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2023-09-01",
+      "name": "[format('{0}/{1}', parameters('vnetName'), parameters('defaultSubnetName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('defaultNsgName'))]"
+      ],
+      "properties": {
+        "addressPrefix": "[parameters('defaultSubnetPrefix')]",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('defaultNsgName'))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2023-09-01",
+      "name": "[format('{0}/{1}', parameters('vnetName'), parameters('peSubnetName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('peNsgName'))]"
+      ],
+      "properties": {
+        "addressPrefix": "[parameters('peSubnetPrefix')]",
+        "privateEndpointNetworkPolicies": "Disabled",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('peNsgName'))]"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "defaultNsgId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('defaultNsgName'))]"
+    }
+  }
+}

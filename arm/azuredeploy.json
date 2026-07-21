@@ -1,0 +1,364 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "japaneast",
+      "metadata": {
+        "description": "Deployment location."
+      }
+    },
+    "prj": {
+      "type": "string",
+      "defaultValue": "at-avd",
+      "metadata": {
+        "description": "Project prefix."
+      }
+    },
+    "env": {
+      "type": "string",
+      "defaultValue": "test",
+      "metadata": {
+        "description": "Environment suffix."
+      }
+    },
+    "sessionHostVmSize": {
+      "type": "string",
+      "defaultValue": "Standard_B2as_v2",
+      "metadata": {
+        "description": "Session host VM size."
+      }
+    },
+    "sessionHostAdminUsername": {
+      "type": "string",
+      "defaultValue": "azureuser",
+      "metadata": {
+        "description": "Session host local admin username."
+      }
+    },
+    "sessionHostAdminPassword": {
+      "type": "secureString",
+      "metadata": {
+        "description": "Session host local admin password."
+      }
+    },
+    "sessionHostCount": {
+      "type": "int",
+      "defaultValue": 1,
+      "minValue": 0,
+      "metadata": {
+        "description": "Number of AVD session hosts."
+      }
+    },
+    "sessionHostImageSku": {
+      "type": "string",
+      "defaultValue": "win11-25h2-avd",
+      "metadata": {
+        "description": "Windows 11 AVD image SKU."
+      }
+    }
+  },
+  "variables": {
+    "artifactsLocation": "https://raw.githubusercontent.com/atsugoms/demo-avd/develop/arm/",
+    "rgName": "[format('{0}-{1}-rg', parameters('prj'), parameters('env'))]",
+    "vnetName": "[format('{0}-{1}-vnet', parameters('prj'), parameters('env'))]",
+    "defaultSubnetName": "[format('{0}-{1}-default-snet', parameters('prj'), parameters('env'))]",
+    "peSubnetName": "[format('{0}-{1}-pe-snet', parameters('prj'), parameters('env'))]",
+    "hostPoolName": "[format('{0}-{1}-hostpool', parameters('prj'), parameters('env'))]",
+    "applicationGroupName": "[format('{0}-{1}-dag', parameters('prj'), parameters('env'))]",
+    "workspaceName": "[format('{0}-{1}-workspace', parameters('prj'), parameters('env'))]",
+    "logAnalyticsName": "[format('{0}-{1}-avd-log', parameters('prj'), parameters('env'))]",
+    "dcrName": "[format('{0}-{1}-avd-dcr', parameters('prj'), parameters('env'))]",
+    "storageBaseName": "[replace(format('{0}{1}profilessa', parameters('prj'), parameters('env')), '-', '')]",
+    "storageAccountName": "[toLower(if(greaterOrEquals(length(variables('storageBaseName')), 24), substring(variables('storageBaseName'), 0, 24), variables('storageBaseName')))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "network",
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "templateLink": {
+          "uri": "[uri(variables('artifactsLocation'), 'modules/network.json')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "rgName": {
+            "value": "[variables('rgName')]"
+          },
+          "vnetName": {
+            "value": "[variables('vnetName')]"
+          },
+          "defaultSubnetName": {
+            "value": "[variables('defaultSubnetName')]"
+          },
+          "defaultSubnetPrefix": {
+            "value": "10.0.1.0/24"
+          },
+          "peSubnetName": {
+            "value": "[variables('peSubnetName')]"
+          },
+          "peSubnetPrefix": {
+            "value": "10.0.10.0/24"
+          },
+          "vnetAddressSpace": {
+            "value": "10.0.0.0/16"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "nsg",
+      "dependsOn": [
+        "network"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "templateLink": {
+          "uri": "[uri(variables('artifactsLocation'), 'modules/nsg.json')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "rgName": {
+            "value": "[variables('rgName')]"
+          },
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "vnetName": {
+            "value": "[variables('vnetName')]"
+          },
+          "defaultSubnetName": {
+            "value": "[variables('defaultSubnetName')]"
+          },
+          "defaultSubnetPrefix": {
+            "value": "10.0.1.0/24"
+          },
+          "peSubnetName": {
+            "value": "[variables('peSubnetName')]"
+          },
+          "peSubnetPrefix": {
+            "value": "10.0.10.0/24"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "monitor",
+      "dependsOn": [
+        "network"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "templateLink": {
+          "uri": "[uri(variables('artifactsLocation'), 'modules/monitor.json')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "rgName": {
+            "value": "[variables('rgName')]"
+          },
+          "logAnalyticsName": {
+            "value": "[variables('logAnalyticsName')]"
+          },
+          "dcrName": {
+            "value": "[variables('dcrName')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "avdCore",
+      "dependsOn": [
+        "monitor"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "templateLink": {
+          "uri": "[uri(variables('artifactsLocation'), 'modules/avd-core.json')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "rgName": {
+            "value": "[variables('rgName')]"
+          },
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "hostPoolName": {
+            "value": "[variables('hostPoolName')]"
+          },
+          "applicationGroupName": {
+            "value": "[variables('applicationGroupName')]"
+          },
+          "workspaceName": {
+            "value": "[variables('workspaceName')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference('monitor').outputs.logAnalyticsWorkspaceId.value]"
+          },
+          "sessionHostCount": {
+            "value": "[parameters('sessionHostCount')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "storage",
+      "dependsOn": [
+        "network"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "templateLink": {
+          "uri": "[uri(variables('artifactsLocation'), 'modules/storage.json')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "rgName": {
+            "value": "[variables('rgName')]"
+          },
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "vnetId": {
+            "value": "[reference('network').outputs.vnetId.value]"
+          },
+          "peSubnetId": {
+            "value": "[reference('network').outputs.peSubnetId.value]"
+          },
+          "storageAccountName": {
+            "value": "[variables('storageAccountName')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[greater(parameters('sessionHostCount'), 0)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "sessionHosts",
+      "dependsOn": [
+        "nsg",
+        "avdCore",
+        "storage",
+        "monitor"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "templateLink": {
+          "uri": "[uri(variables('artifactsLocation'), 'modules/session-hosts.json')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "rgName": {
+            "value": "[variables('rgName')]"
+          },
+          "prj": {
+            "value": "[parameters('prj')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          },
+          "sessionHostCount": {
+            "value": "[parameters('sessionHostCount')]"
+          },
+          "sessionHostVmSize": {
+            "value": "[parameters('sessionHostVmSize')]"
+          },
+          "sessionHostImageSku": {
+            "value": "[parameters('sessionHostImageSku')]"
+          },
+          "sessionHostAdminUsername": {
+            "value": "[parameters('sessionHostAdminUsername')]"
+          },
+          "sessionHostAdminPassword": {
+            "value": "[parameters('sessionHostAdminPassword')]"
+          },
+          "defaultSubnetId": {
+            "value": "[reference('network').outputs.defaultSubnetId.value]"
+          },
+          "hostPoolName": {
+            "value": "[variables('hostPoolName')]"
+          },
+          "registrationToken": {
+            "value": "[reference('avdCore').outputs.registrationToken.value]"
+          },
+          "dcrId": {
+            "value": "[reference('monitor').outputs.dcrId.value]"
+          },
+          "storageFileFqdn": {
+            "value": "[reference('storage').outputs.storageFileFqdn.value]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[variables('rgName')]"
+    },
+    "hostPoolName": {
+      "type": "string",
+      "value": "[variables('hostPoolName')]"
+    },
+    "workspaceName": {
+      "type": "string",
+      "value": "[variables('workspaceName')]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[variables('storageAccountName')]"
+    }
+  }
+}
