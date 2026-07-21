@@ -1,6 +1,6 @@
 # AVD ARM テンプレート デプロイ手順
 
-このフォルダには、`/infra` の Terraform 構成をベースにした **分割 ARM テンプレート** が入っています。  
+このフォルダには、`/terraform` の Terraform 構成をベースにした **分割 ARM テンプレート** が入っています。  
 `azuredeploy.json`（親）から `modules/*.json` を呼び出す構成です。
 
 ## 構成

@@ -142,7 +142,7 @@
         "autoUpgradeMinorVersion": true,
         "settings": {
           "fileUris": [
-            "https://raw.githubusercontent.com/atsugoms/demo-avd/refs/heads/develop/infra/scripts/initialize-avd-sessionhost.ps1"
+            "https://raw.githubusercontent.com/atsugoms/demo-avd/refs/heads/develop/scripts/initialize-avd-sessionhost.ps1"
           ],
           "commandToExecute": "[format('powershell -ExecutionPolicy Bypass -File initialize-avd-sessionhost.ps1 -StorageAccountFQDN \"{0}\"', parameters('storageFileFqdn'))]"
         }
