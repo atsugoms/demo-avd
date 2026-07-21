@@ -1,0 +1,218 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "rgName": {
+      "type": "string"
+    },
+    "prj": {
+      "type": "string"
+    },
+    "env": {
+      "type": "string"
+    },
+    "sessionHostCount": {
+      "type": "int"
+    },
+    "sessionHostVmSize": {
+      "type": "string"
+    },
+    "sessionHostImageSku": {
+      "type": "string"
+    },
+    "sessionHostAdminUsername": {
+      "type": "string"
+    },
+    "sessionHostAdminPassword": {
+      "type": "secureString"
+    },
+    "defaultSubnetId": {
+      "type": "string"
+    },
+    "hostPoolName": {
+      "type": "string"
+    },
+    "registrationToken": {
+      "type": "secureString"
+    },
+    "dcrId": {
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "copy": {
+        "name": "nicLoop",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "name": "[format('{0}-{1}-win11ent-{2}-nic', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "internal",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[parameters('defaultSubnetId')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2024-03-01",
+      "copy": {
+        "name": "vmLoop",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "name": "[format('{0}-{1}-win11ent-{2}', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0'))]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "nicLoop"
+      ],
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('sessionHostVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[format('win11ent-{0}', padLeft(string(add(copyIndex(), 1)), 2, '0'))]",
+          "adminUsername": "[parameters('sessionHostAdminUsername')]",
+          "adminPassword": "[parameters('sessionHostAdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsDesktop",
+            "offer": "windows-11",
+            "sku": "[parameters('sessionHostImageSku')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[format('{0}-{1}-win11ent-{2}-osdisk', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0'))]",
+            "createOption": "FromImage",
+            "caching": "ReadWrite",
+            "managedDisk": {
+              "storageAccountType": "StandardSSD_LRS"
+            },
+            "diskSizeGB": 128
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-{1}-win11ent-{2}-nic', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0')))]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        },
+        "licenseType": "Windows_Client"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2024-03-01",
+      "copy": {
+        "name": "aadLoginLoop",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "name": "[format('{0}-{1}-win11ent-{2}/AADLoginForWindows', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0'))]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "vmLoop"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.ActiveDirectory",
+        "type": "AADLoginForWindows",
+        "typeHandlerVersion": "2.2",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "mdmId": ""
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2024-03-01",
+      "copy": {
+        "name": "registerLoop",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "name": "[format('{0}-{1}-win11ent-{2}/DSC', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0'))]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "aadLoginLoop"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Powershell",
+        "type": "DSC",
+        "typeHandlerVersion": "2.73",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "modulesUrl": "https://wvdportalstorageblob.blob.core.windows.net/galleryartifacts/Configuration_1.0.02714.342.zip",
+          "configurationFunction": "Configuration.ps1\\AddSessionHost",
+          "properties": {
+            "hostPoolName": "[parameters('hostPoolName')]"
+          }
+        },
+        "protectedSettings": {
+          "properties": {
+            "registrationInfoToken": "[parameters('registrationToken')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2024-03-01",
+      "copy": {
+        "name": "amaLoop",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "name": "[format('{0}-{1}-win11ent-{2}/AzureMonitorWindowsAgent', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0'))]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "registerLoop"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.Monitor",
+        "type": "AzureMonitorWindowsAgent",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+      "apiVersion": "2022-06-01",
+      "copy": {
+        "name": "dcrAssocLoop",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "name": "[format('avd-dcr-assoc-{0}', copyIndex())]",
+      "dependsOn": [
+        "amaLoop"
+      ],
+      "properties": {
+        "dataCollectionRuleId": "[parameters('dcrId')]"
+      },
+      "scope": "[resourceId('Microsoft.Compute/virtualMachines', format('{0}-{1}-win11ent-{2}', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0')))]"
+    }
+  ],
+  "outputs": {
+    "sessionHostCount": {
+      "type": "int",
+      "value": "[parameters('sessionHostCount')]"
+    }
+  }
+}
