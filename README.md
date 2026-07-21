@@ -2,8 +2,8 @@
 
 このリポジトリでは、Azure Virtual Desktop (AVD) 環境を **2つの方法**でデプロイできます。
 
-- **Terraform デプロイ**: `terraform/README.md`
-- **ARM Template デプロイ**: `arm/README.md`
+- **Terraform デプロイ**
+- **ARM Template デプロイ**
 
 ## デプロイされる構成（概要）
 
@@ -23,5 +23,5 @@
 
 詳細手順は各 README を参照してください。
 
-- Terraform: `terraform/README.md`
-- ARM Template: `arm/README.md`
+- Terraform: [terraform/README.md](./terraform/README.md)
+- ARM Template: [arm/README.md](./arm/README.md)
