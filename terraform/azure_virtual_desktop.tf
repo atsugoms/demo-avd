@@ -219,7 +219,7 @@ resource "azurerm_virtual_machine_extension" "avd_sessionhost_custom_config" {
 
   settings = jsonencode({
     "fileUris" : [
-      "https://raw.githubusercontent.com/atsugoms/demo-avd/refs/heads/develop/infra/scripts/initialize-avd-sessionhost.ps1"
+      "https://raw.githubusercontent.com/atsugoms/demo-avd/refs/heads/develop/scripts/initialize-avd-sessionhost.ps1"
     ],
     "commandToExecute" : "powershell -ExecutionPolicy Bypass -File initialize-avd-sessionhost.ps1 -StorageAccountFQDN \"${azurerm_storage_account.profiles.name}.file.core.windows.net\""
   })

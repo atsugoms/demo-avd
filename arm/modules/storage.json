@@ -1,0 +1,145 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "rgName": {
+      "type": "string"
+    },
+    "prj": {
+      "type": "string"
+    },
+    "env": {
+      "type": "string"
+    },
+    "storageAccountName": {
+      "type": "string"
+    },
+    "vnetId": {
+      "type": "string"
+    },
+    "peSubnetId": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "dnsZoneName": "privatelink.file.core.windows.net",
+    "dnsLinkName": "[format('{0}-{1}-storage-file-dns-link', parameters('prj'), parameters('env'))]",
+    "privateEndpointName": "[format('{0}-{1}-st-file-pe', parameters('prj'), parameters('env'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": true,
+        "minimumTlsVersion": "TLS1_2",
+        "publicNetworkAccess": "Disabled",
+        "supportsHttpsTrafficOnly": true,
+        "azureFilesIdentityBasedAuthentication": {
+          "directoryServiceOptions": "AADKERB"
+        }
+      },
+      "tags": {
+        "SecurityControl": "Ignore"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2023-05-01",
+      "name": "[format('{0}/default/profiles', parameters('storageAccountName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+      ],
+      "properties": {
+        "shareQuota": 100,
+        "enabledProtocols": "SMB"
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2024-06-01",
+      "name": "[variables('dnsZoneName')]",
+      "location": "global",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2024-06-01",
+      "name": "[format('{0}/{1}', variables('dnsZoneName'), variables('dnsLinkName'))]",
+      "location": "global",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('dnsZoneName'))]"
+      ],
+      "properties": {
+        "registrationEnabled": false,
+        "virtualNetwork": {
+          "id": "[parameters('vnetId')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('privateEndpointName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+      ],
+      "properties": {
+        "subnet": {
+          "id": "[parameters('peSubnetId')]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "[format('{0}-{1}-st-file-psc', parameters('prj'), parameters('env'))]",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "groupIds": [
+                "file"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[format('{0}/storage-file-dns-zone-group', variables('privateEndpointName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateEndpoints', variables('privateEndpointName'))]",
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('dnsZoneName'))]"
+      ],
+      "properties": {
+        "privateDnsZoneConfigs": [
+          {
+            "name": "storage-file-dns-zone",
+            "properties": {
+              "privateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('dnsZoneName'))]"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "storageAccountId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+    },
+    "storageFileFqdn": {
+      "type": "string",
+      "value": "[format('{0}.file.core.windows.net', parameters('storageAccountName'))]"
+    }
+  }
+}

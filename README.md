@@ -5,7 +5,7 @@
 
 1. デプロイ用の変数ファイルを準備
 
-    `/infra/terraform.tfvars.example` をコピーして `/infra/terraform.tfvars` を作成
+    `/terraform/terraform.tfvars.example` をコピーして `/terraform/terraform.tfvars` を作成
 
     | key | value |
     |---|---|
@@ -27,7 +27,7 @@
 1. デプロイ
 
     ```
-    cd infra
+    cd terraform
     terraform init
     terraform apply --auto-approve
     ```
@@ -50,4 +50,3 @@
     - デスクトップ アプリ:
         - [Windows](https://apps.microsoft.com/detail/9N1F85V9T8BN)
         - [macOS](https://aka.ms/macOSWindowsApp)
-
