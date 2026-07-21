@@ -348,6 +348,9 @@
           },
           "dcrId": {
             "value": "[reference('monitor').outputs.dcrId.value]"
+          },
+          "storageFileFqdn": {
+            "value": "[reference('storage').outputs.storageFileFqdn.value]"
           }
         }
       }

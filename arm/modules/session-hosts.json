@@ -40,6 +40,9 @@
     },
     "dcrId": {
       "type": "string"
+    },
+    "storageFileFqdn": {
+      "type": "string"
     }
   },
   "resources": [
@@ -124,6 +127,31 @@
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "apiVersion": "2024-03-01",
       "copy": {
+        "name": "customConfigLoop",
+        "count": "[parameters('sessionHostCount')]"
+      },
+      "name": "[format('{0}-{1}-win11ent-{2}/CustomScriptExtension', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0'))]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "aadLoginLoop"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.10",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "https://raw.githubusercontent.com/atsugoms/demo-avd/refs/heads/develop/infra/scripts/initialize-avd-sessionhost.ps1"
+          ],
+          "commandToExecute": "[format('powershell -ExecutionPolicy Bypass -File initialize-avd-sessionhost.ps1 -StorageAccountFQDN \"{0}\"', parameters('storageFileFqdn'))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2024-03-01",
+      "copy": {
         "name": "aadLoginLoop",
         "count": "[parameters('sessionHostCount')]"
       },
@@ -152,7 +180,7 @@
       "name": "[format('{0}-{1}-win11ent-{2}/DSC', parameters('prj'), parameters('env'), padLeft(string(add(copyIndex(), 1)), 2, '0'))]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "aadLoginLoop"
+        "customConfigLoop"
       ],
       "properties": {
         "publisher": "Microsoft.Powershell",
