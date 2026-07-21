@@ -57,23 +57,10 @@
       "metadata": {
         "description": "Windows 11 AVD image SKU."
       }
-    },
-    "_artifactsLocation": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Base URI where linked templates are hosted (must end with '/')."
-      }
-    },
-    "_artifactsLocationSasToken": {
-      "type": "secureString",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Optional SAS token beginning with '?'."
-      }
     }
   },
   "variables": {
+    "artifactsLocation": "https://raw.githubusercontent.com/atsugoms/demo-avd/develop/arm/",
     "rgName": "[format('{0}-{1}-rg', parameters('prj'), parameters('env'))]",
     "vnetName": "[format('{0}-{1}-vnet', parameters('prj'), parameters('env'))]",
     "defaultSubnetName": "[format('{0}-{1}-default-snet', parameters('prj'), parameters('env'))]",
@@ -97,7 +84,7 @@
           "scope": "inner"
         },
         "templateLink": {
-          "uri": "[uri(parameters('_artifactsLocation'), concat('modules/network.json', parameters('_artifactsLocationSasToken')))]"
+          "uri": "[uri(variables('artifactsLocation'), 'modules/network.json')]"
         },
         "parameters": {
           "location": {
@@ -140,7 +127,7 @@
           "scope": "inner"
         },
         "templateLink": {
-          "uri": "[uri(parameters('_artifactsLocation'), concat('modules/nsg.json', parameters('_artifactsLocationSasToken')))]"
+          "uri": "[uri(variables('artifactsLocation'), 'modules/nsg.json')]"
         },
         "parameters": {
           "location": {
@@ -186,7 +173,7 @@
           "scope": "inner"
         },
         "templateLink": {
-          "uri": "[uri(parameters('_artifactsLocation'), concat('modules/monitor.json', parameters('_artifactsLocationSasToken')))]"
+          "uri": "[uri(variables('artifactsLocation'), 'modules/monitor.json')]"
         },
         "parameters": {
           "location": {
@@ -217,7 +204,7 @@
           "scope": "inner"
         },
         "templateLink": {
-          "uri": "[uri(parameters('_artifactsLocation'), concat('modules/avd-core.json', parameters('_artifactsLocationSasToken')))]"
+          "uri": "[uri(variables('artifactsLocation'), 'modules/avd-core.json')]"
         },
         "parameters": {
           "location": {
@@ -263,7 +250,7 @@
           "scope": "inner"
         },
         "templateLink": {
-          "uri": "[uri(parameters('_artifactsLocation'), concat('modules/storage.json', parameters('_artifactsLocationSasToken')))]"
+          "uri": "[uri(variables('artifactsLocation'), 'modules/storage.json')]"
         },
         "parameters": {
           "location": {
@@ -307,7 +294,7 @@
           "scope": "inner"
         },
         "templateLink": {
-          "uri": "[uri(parameters('_artifactsLocation'), concat('modules/session-hosts.json', parameters('_artifactsLocationSasToken')))]"
+          "uri": "[uri(variables('artifactsLocation'), 'modules/session-hosts.json')]"
         },
         "parameters": {
           "location": {
